@@ -15,3 +15,6 @@ coverage/
 
 # Pamięć podręczna TypeScript
 *.tsbuildinfo
+
+# Kod generowany ze schematu Prisma
+/backend/src/generated/prisma/
