@@ -113,3 +113,43 @@ npm test -- --runInBand
 npm run test:e2e -- --runInBand
 npm run build
 ```
+
+### Przygotowanie bazy dla backendu
+
+Najpierw uruchom PostgreSQL z głównego folderu repozytorium:
+
+```powershell
+docker compose up -d --wait
+```
+
+W `backend/.env` ustaw:
+- `DATABASE_URL` — adres lokalnej bazy z właściwym użytkownikiem i hasłem;
+- `SEED_USER_PASSWORD` — własne hasło przykładowego konta gracza.
+
+Z folderu `backend` wykonaj:
+
+```powershell
+npx prisma generate
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+Polecenia generują klienta Prisma, stosują zapisane migracje
+i przygotowują konto `tester@example.com` z nickiem `Tester`.
+
+Ponowne uruchomienie seedu nie tworzy duplikatu ani nie zmienia
+hasła istniejącego konta.
+
+Backend i testy E2E wymagają działającej bazy.
+
+### Zmiany modelu danych podczas developmentu
+
+Po edycji `prisma/schema.prisma` utwórz migrację:
+
+```powershell
+npx prisma migrate dev --name opis_zmiany
+npx prisma generate
+```
+
+Schemat i migracje zapisujemy w Git.
+Wygenerowanego klienta z `src/generated/prisma` nie zapisujemy.
