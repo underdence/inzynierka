@@ -1,0 +1,17 @@
+# Zainstalowane biblioteki
+node_modules/
+
+# Wyniki kompilacji i testów
+dist/
+coverage/
+
+# Lokalne ustawienia i sekrety
+.env
+.env.*
+!.env.example
+
+# Logi
+*.log
+
+# Pamięć podręczna TypeScript
+*.tsbuildinfo
