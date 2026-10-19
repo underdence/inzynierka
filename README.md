@@ -70,3 +70,46 @@ Zmienne POSTGRES_DB, POSTGRES_USER i POSTGRES_PASSWORD inicjalizują
 bazę przy pierwszym uruchomieniu z pustym katalogiem danych.
 Późniejsza edycja `.env` nie zmienia automatycznie istniejącego
 użytkownika, hasła ani nazwy bazy w zachowanym wolumenie.
+
+## Uruchomienie backendu
+
+Z głównego folderu repozytorium:
+
+```powershell
+cd backend
+npm ci
+```
+
+Przy pierwszym uruchomieniu utwórz lokalną konfigurację:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Jeśli `backend/.env` już istnieje, nie nadpisuj go.
+
+Uruchom serwer:
+
+```powershell
+npm run start:dev
+```
+
+Sprawdzenie działania: http://localhost:3000/health
+
+Oczekiwana odpowiedź: `{"status":"ok"}`.
+Adres zakłada `PORT=3000` w `backend/.env`.
+
+Zatrzymanie serwera: Ctrl+C.
+
+## Kontrole backendu
+
+Z folderu `backend`:
+
+```powershell
+npm run lint
+npm run format:check
+npm run typecheck
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
+npm run build
+```
