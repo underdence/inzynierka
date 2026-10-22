@@ -153,3 +153,65 @@ npx prisma generate
 
 Schemat i migracje zapisujemy w Git.
 Wygenerowanego klienta z `src/generated/prisma` nie zapisujemy.
+
+## Backend — podstawy REST API
+
+Backend korzysta z globalnej walidacji DTO:
+- odrzuca dane niespełniające reguł walidacji;
+- odrzuca dodatkowe pola niezdefiniowane w DTO;
+- przekształca dane wejściowe w instancje klas DTO.
+
+### Konfiguracja CORS
+
+W `backend/.env` ustaw adres frontendu:
+
+```dotenv
+FRONTEND_ORIGIN=http://localhost:5173
+```
+
+Origin obejmuje protokół, host i port. Podczas integracji należy
+dopasować go do rzeczywistego adresu frontendu.
+
+### Health check
+
+`GET /health` zwraca:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+Endpoint potwierdza działanie aplikacji HTTP.
+Nie sprawdza dostępności bazy danych.
+
+### Format błędów
+
+Odpowiedzi błędów HTTP mają wspólną strukturę:
+
+```json
+{
+  "statusCode": 404,
+  "message": ["Cannot GET /nie-istnieje"],
+  "path": "/nie-istnieje",
+  "timestamp": "2026-10-22T20:00:00.000Z"
+}
+```
+
+Pole `message` jest zawsze tablicą tekstów.
+Błędy serwera są logowane, a klient otrzymuje ogólny komunikat.
+
+### Testy
+
+Z folderu `backend`:
+
+```powershell
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
+```
+
+Testy e2e wymagają uruchomionej bazy i poprawnego `DATABASE_URL`.
+Obejmują połączenie z bazą, health, walidację, format błędów,
+ukrywanie szczegółów awarii oraz nagłówek CORS.
+
+Kontroler testowy istnieje wyłącznie w aplikacji testowej.
