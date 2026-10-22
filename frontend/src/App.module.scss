@@ -1,0 +1,38 @@
+$teal: #37d9cb;
+$muted: #98a8bd;
+.app { min-height: 100vh; overflow: hidden; background: radial-gradient(ellipse at 90% 9%, #153249 0, transparent 34%), #0c1527; display: flex; flex-direction: column; }
+.header { border-bottom: 1px solid #273448; }
+.headerInner { max-width: 1200px; min-height: 82px; padding: 0 30px; margin: auto; display: flex; align-items: center; justify-content: space-between; gap: 26px; }
+.brand { display: flex; align-items: center; gap: 11px; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; white-space: nowrap; letter-spacing: -.5px; }
+.brandMark { display: grid; place-items: center; height: 37px; width: 37px; border-radius: 11px; background: $teal; color: #0c1527; font-size: 26px; }
+.brandSlash { color: $teal; }
+.nav { display: flex; gap: 34px; a { color: $muted; font-size: 14px; font-weight: 700; transition: color .2s; &:hover, &.active { color: white; } } }
+.version { color: #8295ad; font-size: 11px; letter-spacing: 1.5px; font-weight: 800; white-space: nowrap; }
+.main { max-width: 1200px; margin: 0 auto; padding: 0 30px; width: 100%; flex: 1; }
+.hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 70px; align-items: center; padding: 100px 0 88px; }
+.eyebrow { color: $teal; font-size: 12px; font-weight: 800; letter-spacing: 2px; display: flex; align-items: center; gap: 10px; }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: $teal; box-shadow: 0 0 12px $teal; }
+.heroCopy h1 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(43px, 5.3vw, 72px); line-height: 1.08; letter-spacing: -3px; margin: 24px 0; max-width: 650px; em { font-style: normal; color: $teal; } }
+.heroCopy > p:not(.caption) { color: $muted; line-height: 1.8; font-size: 17px; max-width: 510px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+.primaryButton, .secondaryButton { padding: 16px 21px; border-radius: 10px; display: inline-flex; align-items: center; gap: 23px; font-size: 14px; font-weight: 800; transition: transform .2s, background .2s; &:hover { transform: translateY(-2px); } }
+.primaryButton { background: $teal; color: #0b2031; &:hover { background: #65eee2; } }
+.secondaryButton { border: 1px solid #415167; color: #eef4ff; &:hover { background: #1c2b41; } }
+.caption { font-size: 12px; color: #71839b; margin-top: 22px; }
+.visual { border: 1px solid #385166; border-radius: 19px; background: linear-gradient(140deg, #1d354a, #15243a 68%); padding: 25px 28px; box-shadow: 0 24px 80px #030b1b66; transform: rotate(1deg); }
+.visualTop, .visualBottom { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #91aac1; font-size: 10px; font-weight: 800; letter-spacing: 1.2px; }
+.live { color: $teal; }
+.equation { text-align: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(37px, 4vw, 60px); letter-spacing: -2px; padding: 67px 0 43px; white-space: nowrap; span { color: #849db6; } strong { color: $teal; font-weight: inherit; } }
+.answerPreview { color: #92a7be; background: #0e1c2e; border: 1px solid #3a5369; border-radius: 10px; padding: 19px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; span { color: $teal; font-size: 25px; } }
+.visualBottom { border-top: 1px solid #33485c; padding-top: 24px; margin-top: 29px; b { color: $teal; } }
+.features { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; padding-bottom: 95px; }
+.featureCard { background: #152338; border: 1px solid #2b3d52; border-radius: 16px; padding: 31px; position: relative; transition: transform .2s, border-color .2s; &:hover { transform: translateY(-3px); border-color: $teal; } h2 { margin: 27px 0 10px; font: 700 27px 'Space Grotesk', sans-serif; } p { color: $muted; font-size: 14px; line-height: 1.7; max-width: 370px; } }
+.featureNumber { color: $teal; font-size: 11px; font-weight: 800; letter-spacing: 2px; }
+.featureIcon { position: absolute; right: 31px; top: 23px; font-size: 32px; color: $teal; }
+.cardLink { display: block; margin-top: 28px; font-size: 13px; font-weight: 800; }
+.footer { border-top: 1px solid #263448; max-width: 1200px; width: 100%; margin: auto; padding: 24px 30px; color: #6e829b; display: flex; justify-content: space-between; gap: 15px; font-size: 10px; font-weight: 800; letter-spacing: 1.2px; }
+.placeholder { padding: 105px 0; max-width: 700px; min-height: 60vh; h1 { font: 700 clamp(38px, 5vw, 60px) 'Space Grotesk', sans-serif; margin: 18px 0; } p { color: $muted; line-height: 1.8; font-size: 17px; } }
+.back { display: block; color: #b2c7dc; margin-bottom: 60px; font-size: 14px; &:hover { color: $teal; } }
+.pending { display: inline-block; color: $teal; padding: 14px 19px; border: 1px solid #30605c; border-radius: 9px; margin-top: 20px; font-size: 14px; }
+@media (max-width: 850px) { .hero { grid-template-columns: 1fr; gap: 45px; padding: 70px 0; } .visual { max-width: 600px; transform: none; } .nav { gap: 15px; } .version { display: none; } }
+@media (max-width: 570px) { .headerInner { padding: 18px 18px; flex-wrap: wrap; gap: 18px; } .nav { width: 100%; justify-content: space-between; font-size: 12px; } .nav a { font-size: 12px; } .main { padding: 0 20px; } .hero { padding-top: 65px; } .heroCopy h1 { letter-spacing: -1.6px; } .features { grid-template-columns: 1fr; } .visual { padding: 20px; } .visualTop, .visualBottom { font-size: 8px; } .footer { padding: 20px; flex-direction: column; } }
