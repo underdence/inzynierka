@@ -95,6 +95,7 @@ describe('Backend (e2e)', () => {
   it('accepts a valid email', () => {
     return request(app.getHttpServer())
       .post('/__test/validation')
+      .set('Origin', 'http://localhost:5173')
       .send({ email: 'tester@example.com' })
       .expect(200)
       .expect({ email: 'tester@example.com' });
@@ -103,6 +104,7 @@ describe('Backend (e2e)', () => {
   it('rejects an invalid email using the common error format', async () => {
     const response = await request(app.getHttpServer())
       .post('/__test/validation')
+      .set('Origin', 'http://localhost:5173')
       .send({ email: 'to-nie-jest-email' })
       .expect(400);
 
@@ -117,6 +119,7 @@ describe('Backend (e2e)', () => {
   it('rejects fields not declared in the DTO', async () => {
     const response = await request(app.getHttpServer())
       .post('/__test/validation')
+      .set('Origin', 'http://localhost:5173')
       .send({
         email: 'tester@example.com',
         isAdmin: true,

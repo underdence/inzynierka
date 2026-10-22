@@ -35,3 +35,13 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
 }
+
+model GuestSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique
+  nickname  String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}

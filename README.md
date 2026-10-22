@@ -215,3 +215,60 @@ Obejmują połączenie z bazą, health, walidację, format błędów,
 ukrywanie szczegółów awarii oraz nagłówek CORS.
 
 Kontroler testowy istnieje wyłącznie w aplikacji testowej.
+
+## Tożsamość gracza
+
+Backend obsługuje konta oraz tymczasowych gości.
+
+### Endpointy
+
+| Metoda | Endpoint | Działanie |
+|---|---|---|
+| POST | /auth/register | Utworzenie konta |
+| POST | /auth/login | Logowanie i utworzenie sesji konta |
+| POST | /auth/guest | Utworzenie sesji gościa z automatycznym nickiem |
+| GET | /auth/me | Odczyt aktualnego gracza |
+| POST | /auth/logout | Unieważnienie przesłanych sesji konta i gościa |
+
+Rejestracja nie loguje automatycznie.
+
+### Dane konta
+
+- E-mail jest normalizowany do małych liter.
+- Nick ma 3–20 znaków: litery polskie i łacińskie, cyfry oraz `_`.
+- Nick jest unikalny bez rozróżniania wielkości liter.
+- Hasło ma 8–128 znaków i jest hashowane przez Argon2id.
+
+### Sesje
+
+Sesje są ważne maksymalnie 24 godziny, bez automatycznego
+przedłużania. Baza przechowuje hashe tokenów.
+
+Tokeny są przekazywane przez ciasteczka HttpOnly:
+- math_duel_session — konto;
+- math_duel_guest — gość.
+
+Przy obecności obu ważnych sesji konto ma pierwszeństwo.
+Wylogowanie unieważnia obie sesje przesłane przez klienta.
+
+Odpowiedź /auth/me zawiera obiekt player:
+- type: user — konto, pola id, email, nickname;
+- type: guest — gość, pola id, nickname.
+
+### Żądania z frontendu
+
+Frontend powinien używać credentials: 'include'.
+Żądania zmieniające dane wymagają Origin zgodnego z FRONTEND_ORIGIN.
+Brak lub niezgodny Origin powoduje odpowiedź 403.
+
+Logowanie, rejestracja i tworzenie gościa mają osobne limity:
+10 żądań na minutę z jednego IP; przekroczenie powoduje 429.
+Liczniki są przechowywane w pamięci procesu.
+
+### Wdrożenie i utrzymanie
+
+Przy wdrożeniu wymagane są HTTPS, NODE_ENV=production
+oraz dopasowanie konfiguracji origin i zaufanego proxy.
+
+Wygasłe sesje są odrzucane przez backend, ale ich rekordy
+nie są jeszcze automatycznie usuwane z bazy.

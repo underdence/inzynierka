@@ -2,15 +2,26 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  OnModuleInit,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { RegisterDto } from './dto/register.dto';
 import type { LoginDto } from './dto/login.dto';
+import { randomBytes } from 'node:crypto';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+  private dummyPasswordHash!: string;
+
+  async onModuleInit(): Promise<void> {
+    this.dummyPasswordHash = await argon2.hash(
+      randomBytes(32).toString('base64url'),
+      { type: argon2.argon2id },
+    );
+  }
+
   constructor(private readonly prisma: PrismaService) {}
 
   async register(dto: RegisterDto) {
@@ -60,16 +71,11 @@ export class AuthService {
       },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Nieprawidłowy e-mail lub hasło.');
-    }
+    const hashToVerify = user?.passwordHash ?? this.dummyPasswordHash;
 
-    const passwordMatches = await argon2.verify(
-      user.passwordHash,
-      dto.password,
-    );
+    const passwordMatches = await argon2.verify(hashToVerify, dto.password);
 
-    if (!passwordMatches) {
+    if (!user || !passwordMatches) {
       throw new UnauthorizedException('Nieprawidłowy e-mail lub hasło.');
     }
 

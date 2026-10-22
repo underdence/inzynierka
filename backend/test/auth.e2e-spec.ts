@@ -17,6 +17,36 @@ describe('Authentication (e2e)', () => {
 
   const password = 'TestoweHaslo123!';
   const testEmails = new Set<string>();
+  const guestTokenHashes = new Set<string>();
+
+  function readSessionCookie(header: unknown, name: string): string {
+    if (!Array.isArray(header)) {
+      throw new Error('Brak nagłówka Set-Cookie.');
+    }
+
+    const value: unknown = header.find(
+      (item: unknown) =>
+        typeof item === 'string' && item.startsWith(`${name}=`),
+    );
+
+    if (typeof value !== 'string') {
+      throw new Error(`Brak ciasteczka ${name}.`);
+    }
+
+    const cookie = value.split(';')[0];
+
+    if (!cookie) {
+      throw new Error('Puste ciasteczko.');
+    }
+
+    if (name === 'math_duel_guest') {
+      const token = cookie.slice(name.length + 1);
+
+      guestTokenHashes.add(createHash('sha256').update(token).digest('hex'));
+    }
+
+    return cookie;
+  }
 
   beforeAll(async () => {
     const moduleFixture = await Test.createTestingModule({
@@ -43,6 +73,11 @@ describe('Authentication (e2e)', () => {
   afterAll(async () => {
     try {
       if (prisma) {
+        await prisma.guestSession.deleteMany({
+          where: {
+            tokenHash: { in: [...guestTokenHashes] },
+          },
+        });
         await prisma.user.deleteMany({
           where: {
             email: { in: [...testEmails] },
@@ -65,6 +100,7 @@ describe('Authentication (e2e)', () => {
     // 2. Tworzymy osobne konto dla tego testu.
     const registration = await request(server)
       .post('/auth/register')
+      .set('Origin', 'http://localhost:5173')
       .send({ email, nickname, password })
       .expect(201);
 
@@ -78,11 +114,13 @@ describe('Authentication (e2e)', () => {
     // 3. Logujemy się i pobieramy ciasteczko.
     const login = await request(server)
       .post('/auth/login')
+      .set('Origin', 'http://localhost:5173')
       .send({ email, password })
       .expect(200);
 
     expect(login.body).toEqual({
-      user: {
+      player: {
+        type: 'user',
         id: expect.any(String),
         email,
         nickname,
@@ -125,6 +163,7 @@ describe('Authentication (e2e)', () => {
     // 5. Wylogowujemy tę sesję.
     await request(server)
       .post('/auth/logout')
+      .set('Origin', 'http://localhost:5173')
       .set('Cookie', cookie)
       .expect(204);
 
@@ -134,6 +173,7 @@ describe('Authentication (e2e)', () => {
     // 7. Powtórne wylogowanie też powinno się udać.
     await request(server)
       .post('/auth/logout')
+      .set('Origin', 'http://localhost:5173')
       .set('Cookie', cookie)
       .expect(204);
   });
@@ -142,6 +182,7 @@ describe('Authentication (e2e)', () => {
 
     await request(server)
       .post('/auth/register')
+      .set('Origin', 'http://localhost:5173')
       .send({ email, nickname, password })
       .expect(201);
 
@@ -151,6 +192,7 @@ describe('Authentication (e2e)', () => {
 
     const response = await request(server)
       .post('/auth/login')
+      .set('Origin', 'http://localhost:5173')
       .send({
         email,
         password: 'NiepoprawneHaslo123!',
@@ -179,11 +221,13 @@ describe('Authentication (e2e)', () => {
 
     await request(server)
       .post('/auth/register')
+      .set('Origin', 'http://localhost:5173')
       .send({ email, nickname, password })
       .expect(201);
 
     await request(server)
       .post('/auth/register')
+      .set('Origin', 'http://localhost:5173')
       .send({
         email: secondEmail,
         nickname: nickname.toUpperCase(),
@@ -203,6 +247,7 @@ describe('Authentication (e2e)', () => {
 
     await request(server)
       .post('/auth/register')
+      .set('Origin', 'http://localhost:5173')
       .send({ email, nickname, password })
       .expect(201);
 
@@ -227,5 +272,145 @@ describe('Authentication (e2e)', () => {
     });
 
     await request(server).get('/auth/me').set('Cookie', cookie).expect(401);
+  });
+
+  it('rejects registration from an untrusted origin', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .set('Origin', 'https://obca-strona.example')
+      .send({ email, nickname, password })
+      .expect(403);
+
+    expect(response.body).toMatchObject({
+      statusCode: 403,
+      message: ['Niedozwolone źródło żądania.'],
+    });
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    expect(user).toBeNull();
+  });
+
+  it('rejects registration from an untrusted origin', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/register')
+      .set('Origin', 'https://obca-strona.example')
+      .send({ email, nickname, password })
+      .expect(403);
+
+    expect(response.body).toMatchObject({
+      statusCode: 403,
+      message: ['Niedozwolone źródło żądania.'],
+    });
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    expect(user).toBeNull();
+  });
+
+  it('creates a guest and invalidates its token on logout', async () => {
+    const server = app.getHttpServer();
+
+    const guest = await request(server)
+      .post('/auth/guest')
+      .set('Origin', 'http://localhost:5173')
+      .expect(201);
+
+    const cookie = readSessionCookie(
+      guest.headers['set-cookie'],
+      'math_duel_guest',
+    );
+
+    expect(guest.body).toEqual({
+      player: {
+        type: 'guest',
+        id: expect.any(String),
+        nickname: expect.stringMatching(/^Gosc-[a-f0-9]{12}$/),
+      },
+    });
+
+    const me = await request(server)
+      .get('/auth/me')
+      .set('Cookie', cookie)
+      .expect(200);
+
+    expect(me.body).toEqual(guest.body);
+
+    await request(server)
+      .post('/auth/logout')
+      .set('Origin', 'http://localhost:5173')
+      .set('Cookie', cookie)
+      .expect(204);
+
+    // Celowo ponownie przesyłamy stary token.
+    await request(server).get('/auth/me').set('Cookie', cookie).expect(401);
+  });
+
+  it('prefers the account and revokes both sessions on logout', async () => {
+    const server = app.getHttpServer();
+
+    const guest = await request(server)
+      .post('/auth/guest')
+      .set('Origin', 'http://localhost:5173')
+      .expect(201);
+
+    const guestCookie = readSessionCookie(
+      guest.headers['set-cookie'],
+      'math_duel_guest',
+    );
+
+    await request(server)
+      .post('/auth/register')
+      .set('Origin', 'http://localhost:5173')
+      .send({ email, nickname, password })
+      .expect(201);
+
+    const login = await request(server)
+      .post('/auth/login')
+      .set('Origin', 'http://localhost:5173')
+      .send({ email, password })
+      .expect(200);
+
+    const accountCookie = readSessionCookie(
+      login.headers['set-cookie'],
+      'math_duel_session',
+    );
+
+    const bothCookies = `${accountCookie}; ${guestCookie}`;
+
+    const me = await request(server)
+      .get('/auth/me')
+      .set('Cookie', bothCookies)
+      .expect(200);
+
+    expect(me.body).toEqual({
+      player: {
+        type: 'user',
+        id: expect.any(String),
+        email,
+        nickname,
+      },
+    });
+
+    await request(server)
+      .post('/auth/logout')
+      .set('Origin', 'http://localhost:5173')
+      .set('Cookie', bothCookies)
+      .expect(204);
+
+    // Sprawdzamy każdy stary token osobno.
+    await request(server)
+      .get('/auth/me')
+      .set('Cookie', accountCookie)
+      .expect(401);
+
+    await request(server)
+      .get('/auth/me')
+      .set('Cookie', guestCookie)
+      .expect(401);
   });
 });

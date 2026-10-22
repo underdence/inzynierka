@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import { TrustedOriginGuard } from './common/guards/trusted-origin.guard';
 
 export function configureApp(
   app: INestApplication,
@@ -11,7 +12,7 @@ export function configureApp(
     origin: frontendOrigin,
     credentials: true,
   });
-
+  app.useGlobalGuards(new TrustedOriginGuard(frontendOrigin));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
