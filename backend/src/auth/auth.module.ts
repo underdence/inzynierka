@@ -7,6 +7,7 @@ import { SessionAuthGuard } from './session-auth.guard';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { GuestSessionService } from './guest-session.service';
 import { PlayerAuthGuard } from './player-auth.guard';
+import { PlayerIdentityService } from './player-identity.service';
 
 @Module({
   imports: [
@@ -29,6 +30,8 @@ import { PlayerAuthGuard } from './player-auth.guard';
     ThrottlerGuard,
     GuestSessionService,
     PlayerAuthGuard,
+    PlayerIdentityService,
   ],
+  exports: [PlayerIdentityService],
 })
 export class AuthModule {}

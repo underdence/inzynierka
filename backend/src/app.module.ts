@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AuthModule } from './auth/auth.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
     }),
     PrismaModule,
     AuthModule,
+    RealtimeModule,
   ],
   controllers: [AppController],
   providers: [

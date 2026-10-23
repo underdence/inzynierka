@@ -272,3 +272,59 @@ oraz dopasowanie konfiguracji origin i zaufanego proxy.
 
 Wygasłe sesje są odrzucane przez backend, ale ich rekordy
 nie są jeszcze automatycznie usuwane z bazy.
+
+## Diagnostyka Socket.IO — etap 02.08
+
+Backend obsługuje namespace `/realtime`. Tożsamość gracza jest
+rozpoznawana na podstawie cookie sesji użytkownika lub gościa.
+
+Podczas nawiązywania połączenia backend sprawdza origin i sesję.
+Sesja jest ponownie sprawdzana podczas obsługi zdarzeń.
+
+### Zdarzenia diagnostyczne
+
+- `connection:check` — zwraca dane połączenia i rozpoznanego gracza.
+- `diagnostic:join` — dołącza połączenie do wspólnego pokoju testowego.
+- `diagnostic:ping` — wysyła powiadomienie do uczestników pokoju.
+- `diagnostic:message` — powiadomienie odbierane przez klientów.
+
+Zdarzenia wysyłane przez klienta zwracają potwierdzenie:
+`{ ok: true, ... }` albo `{ ok: false, error: { code, message } }`.
+
+Pokój diagnostyczny nie jest pokojem pojedynku i nie ma limitu
+dwóch uczestników.
+
+### Strony diagnostyczne
+
+Pliki znajdują się w `backend/tools/socket-check`.
+
+Aby udostępnić je przez Nest, ustaw w `backend/.env`:
+
+ENABLE_DIAGNOSTICS=true
+
+Uruchamiaj backend z folderu `backend`.
+Strona pokoju jest dostępna pod `/diagnostics/room.html`.
+Korzysta z tego samego originu co serwer, który ją udostępnia.
+
+FRONTEND_ORIGIN musi odpowiadać originowi otwartej strony.
+
+Ustawienie ENABLE_DIAGNOSTICS=false wyłącza udostępnianie stron,
+ale nie wyłącza zdarzeń diagnostycznych w gatewayu.
+
+### Wykonane próby ręczne
+
+- Połączenie z ważną sesją gościa.
+- Odrzucenie połączenia bez ważnej sesji oraz z niedozwolonym originem.
+- Odrzucenie wiadomości po wylogowaniu na nadal otwartym połączeniu.
+- Odrzucenie wysyłania do pokoju przed dołączeniem: NOT_IN_ROOM.
+- Przekazywanie wiadomości między dwiema sesjami przeglądarki.
+- Komunikacja przez WebSocket między komputerem i telefonem
+  korzystającym z internetu komórkowego, przez tymczasowy tunel HTTPS.
+
+Próba między urządzeniami zakończyła się powodzeniem 23.10.2026.
+
+### Ograniczenia
+
+To rozwiązanie diagnostyczne. Nie obejmuje jeszcze zasad dostępu
+do prywatnych pojedynków ani automatycznego usuwania odbiorcy
+z pokoju po unieważnieniu jego sesji.
