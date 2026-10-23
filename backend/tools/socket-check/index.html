@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test połączenia Math Duel</title>
+  </head>
+
+  <body>
+    <h1>Test sesji i Socket.IO</h1>
+    <button id="start">Uruchom test</button>
+    <pre id="output"></pre>
+
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <script>
+      const backendUrl = 'http://localhost:3000';
+      const button = document.querySelector('#start');
+      const output = document.querySelector('#output');
+
+      function log(message, data) {
+        output.textContent += message + '\n';
+
+        if (data !== undefined) {
+          output.textContent += JSON.stringify(data, null, 2) + '\n';
+        }
+      }
+
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        output.textContent = '';
+
+        let socket;
+
+        try {
+          log('1. Tworzę sesję gościa przez HTTP...');
+
+          const guestResponse = await fetch(`${backendUrl}/auth/guest`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          if (!guestResponse.ok) {
+            throw new Error(`Tworzenie gościa: HTTP ${guestResponse.status}`);
+          }
+
+          const guestData = await guestResponse.json();
+          log('Utworzono gościa:', guestData);
+
+          log('2. Łączę się z Socket.IO...');
+
+          socket = io(`${backendUrl}/realtime`, {
+            withCredentials: true,
+            transports: ['websocket'],
+            autoConnect: false,
+            reconnection: false,
+            timeout: 5000,
+          });
+
+          await new Promise((resolve, reject) => {
+            socket.once('connect', resolve);
+            socket.once('connect_error', reject);
+            socket.connect();
+          });
+
+          log('Połączono. Identyfikator: ' + socket.id);
+          log('Aktualny transport: ' + socket.io.engine.transport.name);
+
+          log('3. Wysyłam connection:check...');
+
+          const response = await socket
+            .timeout(5000)
+            .emitWithAck('connection:check');
+
+          log('Odpowiedź:', response);
+
+          if (
+            response.ok !== true ||
+            response.socketId !== socket.id ||
+            response.player?.id !== guestData.player.id
+          ) {
+            throw new Error('Backend nie potwierdził naszej sesji gościa.');
+          }
+
+          log('4. Wylogowuję gościa przez HTTP...');
+
+          const logoutResponse = await fetch(`${backendUrl}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          if (logoutResponse.status !== 204) {
+            throw new Error(`Wylogowanie: HTTP ${logoutResponse.status}`);
+          }
+
+          log('5. Wysyłam wiadomość na tym samym połączeniu...');
+
+          const afterLogout = await socket
+            .timeout(5000)
+            .emitWithAck('connection:check');
+
+          log('Odpowiedź po wylogowaniu:', afterLogout);
+
+          if (
+            afterLogout.ok !== false ||
+            afterLogout.error?.code !== 'UNAUTHORIZED'
+          ) {
+            throw new Error('Backend nie odrzucił unieważnionej sesji.');
+          }
+
+          log('SUKCES: połączenie i sprawdzanie sesji działają.');
+        } catch (error) {
+          log(
+            'BŁĄD: ' + (error instanceof Error ? error.message : String(error)),
+          );
+        } finally {
+          socket?.disconnect();
+          button.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

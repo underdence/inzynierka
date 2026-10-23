@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pokój diagnostyczny Math Duel</title>
+  </head>
+
+  <body>
+    <h1>Pokój diagnostyczny</h1>
+    <button id="join">Utwórz gościa i dołącz</button>
+    <button id="send" disabled>Wyślij pozdrowienie</button>
+    <pre id="output"></pre>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const backendUrl = window.location.origin;
+      const joinButton = document.querySelector('#join');
+      const output = document.querySelector('#output');
+      const sendButton = document.querySelector('#send');
+
+      let socket;
+
+      function log(message, data) {
+        output.textContent += message + '\n';
+
+        if (data !== undefined) {
+          output.textContent += JSON.stringify(data, null, 2) + '\n';
+        }
+      }
+
+      joinButton.addEventListener('click', async () => {
+        joinButton.disabled = true;
+        output.textContent = '';
+
+        try {
+          log('Tworzę gościa...');
+
+          const response = await fetch(`${backendUrl}/auth/guest`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          if (!response.ok) {
+            throw new Error(`Tworzenie gościa: HTTP ${response.status}`);
+          }
+
+          const guestData = await response.json();
+          log('Utworzono gościa:', guestData.player);
+
+          socket = io(`${backendUrl}/realtime`, {
+            withCredentials: true,
+            transports: ['websocket'],
+            autoConnect: false,
+            reconnection: false,
+            timeout: 5000,
+          });
+
+          socket.on('disconnect', (reason) => {
+            log('Rozłączono: ' + reason);
+            joinButton.disabled = false;
+            sendButton.disabled = true;
+          });
+
+          socket.on('diagnostic:message', (notification) => {
+            log('Odebrano wiadomość z pokoju:', notification);
+          });
+
+          await new Promise((resolve, reject) => {
+            socket.once('connect', resolve);
+            socket.once('connect_error', reject);
+            socket.connect();
+          });
+
+          log('Połączono. Socket ID: ' + socket.id);
+
+          const beforeJoin = await socket
+            .timeout(5000)
+            .emitWithAck('diagnostic:ping');
+
+          log('Próba wysłania przed dołączeniem:', beforeJoin);
+
+          if (
+            beforeJoin.ok !== false ||
+            beforeJoin.error?.code !== 'NOT_IN_ROOM'
+          ) {
+            throw new Error('Backend nie odrzucił wiadomości spoza pokoju.');
+          }
+
+          const result = await socket
+            .timeout(5000)
+            .emitWithAck('diagnostic:join');
+
+          if (result.ok !== true) {
+            throw new Error(result.error?.message ?? 'Nie udało się dołączyć.');
+          }
+
+          if (result.player.id !== guestData.player.id) {
+            throw new Error(
+              'Rozpoznano innego gracza. Użyj osobnej sesji przeglądarki.',
+            );
+          }
+
+          log('Dołączono do pokoju:', result);
+          log('Połączenie pozostaje otwarte.');
+          sendButton.disabled = false;
+        } catch (error) {
+          log(
+            'BŁĄD: ' + (error instanceof Error ? error.message : String(error)),
+          );
+
+          socket?.disconnect();
+          joinButton.disabled = false;
+        }
+      });
+
+      sendButton.addEventListener('click', async () => {
+        if (!socket?.connected) {
+          log('Brak połączenia z backendem.');
+          return;
+        }
+
+        sendButton.disabled = true;
+
+        try {
+          const result = await socket
+            .timeout(5000)
+            .emitWithAck('diagnostic:ping');
+
+          if (result.ok !== true) {
+            throw new Error(
+              result.error?.message ?? 'Nie udało się wysłać wiadomości.',
+            );
+          }
+
+          log('Backend potwierdził obsługę pozdrowienia.');
+        } catch (error) {
+          log(
+            'BŁĄD: ' + (error instanceof Error ? error.message : String(error)),
+          );
+        } finally {
+          sendButton.disabled = !socket?.connected;
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -6,6 +6,10 @@ export class TrustedOriginGuard implements CanActivate {
   constructor(private readonly frontendOrigin: string) {}
 
   canActivate(context: ExecutionContext): boolean {
+    if (context.getType() !== 'http') {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
 
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {

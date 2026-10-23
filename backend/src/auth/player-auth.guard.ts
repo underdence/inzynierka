@@ -1,15 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
-import { SessionService } from './session.service';
-import { GuestSessionService } from './guest-session.service';
 import type { PlayerRequest } from './player-request';
+import { PlayerIdentityService } from './player-identity.service';
 
 @Injectable()
 export class PlayerAuthGuard implements CanActivate {
-  constructor(
-    private readonly sessionService: SessionService,
-    private readonly guestSessionService: GuestSessionService,
-  ) {}
+  constructor(private readonly playerIdentityService: PlayerIdentityService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<PlayerRequest>();
@@ -30,24 +26,10 @@ export class PlayerAuthGuard implements CanActivate {
         ? cookies.math_duel_guest
         : undefined;
 
-    if (accountToken !== undefined) {
-      try {
-        const user = await this.sessionService.getUser(accountToken);
-
-        request.player = {
-          type: 'user',
-          ...user,
-        };
-
-        return true;
-      } catch (error: unknown) {
-        if (!(error instanceof UnauthorizedException)) {
-          throw error;
-        }
-      }
-    }
-
-    request.player = await this.guestSessionService.getPlayer(guestToken);
+    request.player = await this.playerIdentityService.resolve(
+      accountToken,
+      guestToken,
+    );
 
     return true;
   }
