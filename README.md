@@ -58,7 +58,8 @@ Dane są przechowywane w nazwanym wolumenie `postgres_data`.
 Polecenie `docker compose down -v` usuwa również ten wolumen i dane.
 
 Baza jest dostępna z Windowsa pod adresem `127.0.0.1:5432`.
-Backend nie jest jeszcze połączony z bazą.
+Backend łączy się z bazą przez Prisma, korzystając z DATABASE_URL
+ustawionego w backend/.env.
 
 ### Pliki konfiguracji
 
@@ -71,35 +72,104 @@ bazę przy pierwszym uruchomieniu z pustym katalogiem danych.
 Późniejsza edycja `.env` nie zmienia automatycznie istniejącego
 użytkownika, hasła ani nazwy bazy w zachowanym wolumenie.
 
-## Uruchomienie backendu
+## Pierwsze uruchomienie backendu
+
+Najpierw skonfiguruj i uruchom PostgreSQL zgodnie z sekcją
+„Lokalna baza PostgreSQL”. Kontener powinien mieć status healthy.
 
 Z głównego folderu repozytorium:
 
 ```powershell
 cd backend
 npm ci
-```
-
-Przy pierwszym uruchomieniu utwórz lokalną konfigurację:
-
-```powershell
 Copy-Item .env.example .env
 ```
 
-Jeśli `backend/.env` już istnieje, nie nadpisuj go.
+Kopiowanie wykonuj tylko wtedy, gdy backend/.env jeszcze nie istnieje.
+Nie nadpisuj istniejącej konfiguracji.
 
-Uruchom serwer:
+Uzupełnij backend/.env:
+
+- PORT — port backendu, domyślnie 3000.
+- DATABASE_URL — adres bazy; użytkownik, hasło i nazwa bazy muszą
+  odpowiadać konfiguracji PostgreSQL z głównego .env.
+- SEED_USER_PASSWORD — własne hasło konta testowego, 8–128 znaków.
+- FRONTEND_ORIGIN — dozwolony origin klienta, lokalnie
+  http://localhost:5173.
+- ENABLE_DIAGNOSTICS — domyślnie false.
+
+Główny .env jest używany przez Docker Compose.
+backend/.env jest używany przez backend i narzędzia Prisma.
+Są to dwa osobne pliki.
+
+Jeśli dane logowania zawierają znaki specjalne, ich zapis
+w DATABASE_URL musi być zakodowany zgodnie z formatem URL.
+
+Przygotuj klienta Prisma oraz strukturę bazy:
+
+```powershell
+npx prisma generate
+npx prisma migrate deploy
+npx prisma migrate status
+```
+
+Oczekiwany wynik ostatniego polecenia: Database schema is up to date!
+
+Opcjonalnie utwórz konto testowe:
+
+```powershell
+npx prisma db seed
+```
+
+Seed przygotowuje konto tester@example.com z nickiem Tester.
+Ponowne wykonanie nie tworzy duplikatu ani nie zmienia hasła
+istniejącego konta.
+
+Uruchom backend z folderu backend:
 
 ```powershell
 npm run start:dev
 ```
 
-Sprawdzenie działania: http://localhost:3000/health
+Zostaw terminal uruchomiony. W drugim terminalu sprawdź:
 
-Oczekiwana odpowiedź: `{"status":"ok"}`.
-Adres zakłada `PORT=3000` w `backend/.env`.
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3000/health"
+```
 
-Zatrzymanie serwera: Ctrl+C.
+Oczekiwana odpowiedź: status równy ok.
+Ten endpoint sprawdza HTTP, a nie połączenie z bazą.
+
+Połączenie z bazą i podstawowe scenariusze sprawdzisz,
+uruchamiając z folderu backend:
+
+```powershell
+npm run test:e2e -- --runInBand
+```
+
+Zatrzymanie backendu: Ctrl+C.
+
+## Kolejne uruchomienia
+
+Uruchom Docker Desktop. Z głównego folderu repozytorium:
+
+```powershell
+docker compose up -d --wait
+cd backend
+npm run start:dev
+```
+
+Po pobraniu zmian w zależnościach, schemacie lub migracjach,
+przed uruchomieniem backendu wykonaj:
+
+```powershell
+npm ci
+npx prisma generate
+npx prisma migrate deploy
+```
+
+Nie trzeba ponownie kopiować plików .env ani uruchamiać seeda
+przy każdym starcie.
 
 ## Kontrole backendu
 
@@ -113,34 +183,6 @@ npm test -- --runInBand
 npm run test:e2e -- --runInBand
 npm run build
 ```
-
-### Przygotowanie bazy dla backendu
-
-Najpierw uruchom PostgreSQL z głównego folderu repozytorium:
-
-```powershell
-docker compose up -d --wait
-```
-
-W `backend/.env` ustaw:
-- `DATABASE_URL` — adres lokalnej bazy z właściwym użytkownikiem i hasłem;
-- `SEED_USER_PASSWORD` — własne hasło przykładowego konta gracza.
-
-Z folderu `backend` wykonaj:
-
-```powershell
-npx prisma generate
-npx prisma migrate deploy
-npx prisma db seed
-```
-
-Polecenia generują klienta Prisma, stosują zapisane migracje
-i przygotowują konto `tester@example.com` z nickiem `Tester`.
-
-Ponowne uruchomienie seedu nie tworzy duplikatu ani nie zmienia
-hasła istniejącego konta.
-
-Backend i testy E2E wymagają działającej bazy.
 
 ### Zmiany modelu danych podczas developmentu
 
