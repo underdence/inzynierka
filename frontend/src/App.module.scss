@@ -2,7 +2,7 @@ $glass: rgba(31, 33, 32, .74);
 $stroke: rgba(220, 230, 222, .14);
 $white: #f2f4f2;
 $muted: #a2aba4;
-$aqua: #ef555b;
+$aqua: #8ee3a4;
 
 .shell {
     min-height: 100dvh;
@@ -59,8 +59,8 @@ $aqua: #ef555b;
     border-radius: 12px;
     display: grid;
     place-items: center;
-    background: rgba(239, 85, 91, .16);
-    border: 1px solid rgba(239, 85, 91, .35);
+    background: rgba(142, 227, 164, .16);
+    border: 1px solid rgba(142, 227, 164, .35);
     color: $aqua;
     font-size: 26px;
     margin-right: 11px
@@ -182,14 +182,14 @@ $aqua: #ef555b;
 }
 
 .primary {
-    border: 1px solid #ff9b9e;
+    border: 1px solid #b7edc2;
     background: $aqua;
-    color: #2b1719
+    color: #122218
 }
 
 .primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    background: #ff9b9e
+    background: #b7edc2
 }
 
 .primary:disabled,
@@ -219,19 +219,19 @@ $aqua: #ef555b;
 .orbit {
     width: min(34vw, 470px);
     height: min(34vw, 470px);
-    border: 1px solid rgba(239, 85, 91, .2);
+    border: 1px solid rgba(142, 227, 164, .2);
     border-radius: 50%;
     display: grid;
     place-items: center;
-    box-shadow: 0 0 0 55px rgba(239, 85, 91, .025), 0 0 0 110px rgba(239, 85, 91, .025)
+    box-shadow: 0 0 0 55px rgba(142, 227, 164, .025), 0 0 0 110px rgba(142, 227, 164, .025)
 }
 
 .innerOrbit {
     width: 73%;
     height: 73%;
     border-radius: 50%;
-    border: 1px dashed rgba(239, 85, 91, .38);
-    background: radial-gradient(circle, rgba(239, 85, 91, .12), transparent 70%);
+    border: 1px dashed rgba(142, 227, 164, .38);
+    background: radial-gradient(circle, rgba(142, 227, 164, .12), transparent 70%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -312,9 +312,9 @@ $aqua: #ef555b;
 }
 
 .operators button.chosen {
-    background: rgba(239, 85, 91, .17);
+    background: rgba(142, 227, 164, .17);
     color: $aqua;
-    border-color: rgba(239, 85, 91, .7)
+    border-color: rgba(142, 227, 164, .7)
 }
 
 .operators button:disabled {
@@ -370,8 +370,8 @@ $aqua: #ef555b;
 
 .tag {
     color: $aqua;
-    border: 1px solid rgba(239, 85, 91, .22);
-    background: rgba(239, 85, 91, .06);
+    border: 1px solid rgba(142, 227, 164, .22);
+    background: rgba(142, 227, 164, .06);
     border-radius: 30px;
     padding: 8px 11px;
     white-space: nowrap
@@ -449,7 +449,7 @@ $aqua: #ef555b;
 .answerForm button {
     border: 0;
     background: $aqua;
-    color: #2b1719;
+    color: #122218;
     border-radius: 11px;
     padding: 0 17px;
     font-weight: 800;
@@ -778,7 +778,7 @@ button:focus-visible {
     margin-right: 13px;
     border-radius: 15px;
     transform: rotate(-10deg);
-    background: #ef555b;
+    background: #8ee3a4;
     border: 1px solid rgba(255, 255, 255, .45);
     color: #092b3f;
     box-shadow: 0 8px 28px rgba(90, 164, 106, .22);
@@ -814,7 +814,7 @@ button:focus-visible {
 }
 
 .brandPeriod {
-    color: #ef555b;
+    color: #8ee3a4;
 }
 
 .backHome {
@@ -849,7 +849,7 @@ button:focus-visible {
 .homeEyebrow {
     font: 700 11px 'IBM Plex Mono', monospace;
     letter-spacing: .2em;
-    color: #ef555b;
+    color: #8ee3a4;
 }
 
 .hero h1 {
@@ -893,8 +893,8 @@ button:focus-visible {
 
 .choice:hover {
     transform: translateX(8px);
-    border-color: rgba(239, 85, 91, .6);
-    background: rgba(239, 85, 91, .15);
+    border-color: rgba(142, 227, 164, .6);
+    background: rgba(142, 227, 164, .15);
     box-shadow: 0 20px 50px rgba(0, 0, 0, .15), inset 0 1px rgba(255, 255, 255, .17);
 }
 
@@ -909,8 +909,8 @@ button:focus-visible {
     border-radius: 15px;
     display: grid;
     place-items: center;
-    background: rgba(239, 85, 91, .12);
-    color: #ef555b;
+    background: rgba(142, 227, 164, .12);
+    color: #8ee3a4;
     font: 500 29px 'Space Grotesk', sans-serif;
 }
 
@@ -932,7 +932,7 @@ button:focus-visible {
 }
 
 .choiceArrow {
-    color: #ef555b;
+    color: #8ee3a4;
     font-size: 25px;
     transition: transform .25s;
 }
@@ -956,9 +956,9 @@ button:focus-visible {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(239, 85, 91, .25);
-    background: rgba(239, 85, 91, .035);
-    box-shadow: 0 0 0 48px rgba(239, 85, 91, .025), 0 0 0 96px rgba(239, 85, 91, .023), inset 0 0 55px rgba(239, 85, 91, .03);
+    border: 1px solid rgba(142, 227, 164, .25);
+    background: rgba(142, 227, 164, .035);
+    box-shadow: 0 0 0 48px rgba(142, 227, 164, .025), 0 0 0 96px rgba(142, 227, 164, .023), inset 0 0 55px rgba(142, 227, 164, .03);
     animation: haloFloat 7s ease-in-out infinite;
 }
 
@@ -970,7 +970,7 @@ button:focus-visible {
 }
 
 .haloMath {
-    color: #ef555b;
+    color: #8ee3a4;
     font: 600 14px 'IBM Plex Mono', monospace;
     letter-spacing: .16em;
 }
@@ -1005,7 +1005,7 @@ button:focus-visible {
 }
 
 .primary:hover:not(:disabled) {
-    box-shadow: 0 9px 30px rgba(239, 85, 91, .19);
+    box-shadow: 0 9px 30px rgba(142, 227, 164, .19);
 }
 
 .bigGlyph {
@@ -1240,8 +1240,8 @@ button:focus-visible {
 
 .choice:hover {
     transform: none;
-    background: rgba(239, 85, 91, .12);
-    border-color: rgba(239, 85, 91, .52);
+    background: rgba(142, 227, 164, .12);
+    border-color: rgba(142, 227, 164, .52);
     box-shadow: inset 0 1px rgba(255, 255, 255, .11), 0 12px 35px rgba(0, 0, 0, .08);
 }
 
@@ -1274,7 +1274,7 @@ button:focus-visible {
 }
 
 .numberHalo {
-    box-shadow: 0 0 0 48px rgba(239, 85, 91, .018), 0 0 0 96px rgba(239, 85, 91, .012), inset 0 0 55px rgba(239, 85, 91, .025)
+    box-shadow: 0 0 0 48px rgba(142, 227, 164, .018), 0 0 0 96px rgba(142, 227, 164, .012), inset 0 0 55px rgba(142, 227, 164, .025)
 }
 
 .choiceDisabled,
