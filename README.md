@@ -370,3 +370,78 @@ Próba między urządzeniami zakończyła się powodzeniem 23.10.2026.
 To rozwiązanie diagnostyczne. Nie obejmuje jeszcze zasad dostępu
 do prywatnych pojedynków ani automatycznego usuwania odbiorcy
 z pokoju po unieważnieniu jego sesji.
+
+## Trening na czas — API
+
+Trening jest dostępny dla zalogowanego użytkownika oraz gościa.
+Wymaga ważnego ciasteczka sesji gracza.
+
+### Endpointy
+
+| Metoda | Ścieżka | Działanie |
+|---|---|---|
+| POST | /training | Rozpoczęcie treningu |
+| GET | /training/:sessionId/question | Pobranie aktualnego pytania |
+| POST | /training/:sessionId/answers | Przesłanie odpowiedzi |
+| GET | /training/:sessionId/summary | Pobranie podsumowania |
+
+### Rozpoczęcie treningu
+
+Przykładowa treść POST /training:
+
+{
+  "operations": ["addition", "subtraction"],
+  "difficulty": "easy",
+  "durationSeconds": 30
+}
+
+Dostępne operacje: addition, subtraction, multiplication, division.
+Poziomy trudności: easy, medium, hard.
+Czas treningu: 30, 60 lub 120 sekund.
+
+### Przesłanie odpowiedzi
+
+Przykładowa treść POST /training/:sessionId/answers:
+
+{
+  "questionId": "UUID aktualnego pytania",
+  "answer": 12
+}
+
+Błędna odpowiedź zwiększa attempts i pozostawia aktualne pytanie.
+Poprawna odpowiedź zwiększa attempts oraz score i zwraca kolejne pytanie.
+Ponowiona odpowiedź na poprzednie pytanie jest odrzucana.
+
+Backend kontroluje czas, właściciela treningu i punktację.
+Poprawne odpowiedzi oraz kolejka zadań nie są wysyłane klientowi.
+
+### Generowanie zadań
+
+Zakresy liczb znajdują się w backend/src/math/math.config.ts.
+Backend utrzymuje jedno aktualne zadanie i dziewięć oczekujących.
+Po poprawnej odpowiedzi uzupełnia kolejkę jednym zadaniem.
+
+Zadania nie powtarzają się w obrębie puli. Po jej wyczerpaniu
+rozpoczyna się nowa pula, nadal chroniąca aktualne zadanie i kolejkę.
+Zamienione argumenty dodawania i mnożenia są traktowane jako powtórzenie.
+
+### Błędy HTTP
+
+- 400 — nieprawidłowe dane.
+- 401 — brak ważnej sesji gracza.
+- 403 — niedozwolone źródło żądania.
+- 404 — trening nie istnieje lub należy do innego gracza.
+- 409 — odpowiedź dotyczy nieaktualnego pytania.
+- 410 — czas treningu minął; podsumowanie nadal może być dostępne.
+
+Żądania POST wymagają nagłówka Origin zgodnego z FRONTEND_ORIGIN.
+Klient przeglądarkowy musi przesyłać ciasteczka, np. przez
+fetch z credentials: 'include'.
+
+### Przechowywanie
+
+Treningi są przechowywane wyłącznie w pamięci pojedynczego procesu.
+Restart backendu usuwa treningi. Historia nie jest zapisywana w bazie.
+
+Sesje kwalifikują się do usunięcia 10 minut po zakończeniu.
+Sprzątanie uruchamia się co minutę.

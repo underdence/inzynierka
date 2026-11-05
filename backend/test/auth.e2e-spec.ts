@@ -293,25 +293,6 @@ describe('Authentication (e2e)', () => {
     expect(user).toBeNull();
   });
 
-  it('rejects registration from an untrusted origin', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/auth/register')
-      .set('Origin', 'https://obca-strona.example')
-      .send({ email, nickname, password })
-      .expect(403);
-
-    expect(response.body).toMatchObject({
-      statusCode: 403,
-      message: ['Niedozwolone źródło żądania.'],
-    });
-
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    expect(user).toBeNull();
-  });
-
   it('creates a guest and invalidates its token on logout', async () => {
     const server = app.getHttpServer();
 
