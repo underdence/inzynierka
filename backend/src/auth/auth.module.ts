@@ -32,6 +32,6 @@ import { PlayerIdentityService } from './player-identity.service';
     PlayerAuthGuard,
     PlayerIdentityService,
   ],
-  exports: [PlayerIdentityService],
+  exports: [PlayerIdentityService, PlayerAuthGuard],
 })
 export class AuthModule {}

@@ -1,28 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { randomInt } from './random-int';
 import type { Difficulty, MathTask } from './math.types';
+import { DIVISION_RANGES } from './math.config';
 
 export function generateDivision(difficulty: Difficulty): MathTask {
-  let min: number;
-  let divisorMax: number;
-  let answerMax: number;
+  const ranges = DIVISION_RANGES[difficulty];
 
-  if (difficulty === 'easy') {
-    min = 1;
-    divisorMax = 10;
-    answerMax = 10;
-  } else if (difficulty === 'medium') {
-    min = 2;
-    divisorMax = 12;
-    answerMax = 12;
-  } else {
-    min = 2;
-    divisorMax = 20;
-    answerMax = 50;
-  }
-
-  const right = randomInt(min, divisorMax);
-  const answer = randomInt(min, answerMax);
+  const right = randomInt(ranges.divisor.min, ranges.divisor.max);
+  const answer = randomInt(ranges.answer.min, ranges.answer.max);
   const left = right * answer;
 
   return {

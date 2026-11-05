@@ -1,28 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { randomInt } from './random-int';
 import type { Difficulty, MathTask } from './math.types';
+import { MULTIPLICATION_RANGES } from './math.config';
 
 export function generateMultiplication(difficulty: Difficulty): MathTask {
-  let min: number;
-  let leftMax: number;
-  let rightMax: number;
+  const ranges = MULTIPLICATION_RANGES[difficulty];
 
-  if (difficulty === 'easy') {
-    min = 1;
-    leftMax = 10;
-    rightMax = 10;
-  } else if (difficulty === 'medium') {
-    min = 2;
-    leftMax = 12;
-    rightMax = 12;
-  } else {
-    min = 2;
-    leftMax = 20;
-    rightMax = 50;
-  }
-
-  const left = randomInt(min, leftMax);
-  const right = randomInt(min, rightMax);
+  const left = randomInt(ranges.left.min, ranges.left.max);
+  const right = randomInt(ranges.right.min, ranges.right.max);
 
   return {
     id: randomUUID(),
