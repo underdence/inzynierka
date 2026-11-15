@@ -1,129 +1,347 @@
 
-import { useEffect, useRef, useState } from 'react';
-import { generateSeries, summarize } from './training';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError } from './api/client';
+import {
+  formatQuestion,
+  getTrainingQuestion,
+  getTrainingSummary,
+  startTraining,
+  submitTrainingAnswer,
+} from './api/training';
+import { usePlayerSession } from './hooks/usePlayerSession';
 import styles from './App.module.scss';
 
 const ops = ['+', '−', '×', '÷'];
 
-const format = (ms) => {
-  const seconds = Math.floor(ms / 1000);
+const formatTime = (ms) => {
+  const seconds = Math.floor(Math.max(0, ms) / 1000);
 
-  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+  return [
+    String(Math.floor(seconds / 60)).padStart(2, '0'),
+    String(seconds % 60).padStart(2, '0'),
+  ].join(':');
 };
 
+const getErrorMessage = (error, fallback) =>
+  error instanceof Error ? error.message : fallback;
+
 export default function App() {
+  const playerSession = usePlayerSession();
+
   const [view, setView] = useState('start');
   const [stage, setStage] = useState('setup');
+
   const [selected, setSelected] = useState(['+', '−', '×']);
   const [difficulty, setDifficulty] = useState('medium');
-  const [limit, setLimit] = useState(10);
-  const [questions, setQuestions] = useState([]);
-  const [index, setIndex] = useState(0);
+  const [duration, setDuration] = useState(60);
+
+  const [training, setTraining] = useState(null);
+  const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState('');
-  const [attempts, setAttempts] = useState([]);
+
+  const [score, setScore] = useState(0);
+  const [attempts, setAttempts] = useState(0);
+  const [streak, setStreak] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+
+  const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const sessionStart = useRef(0);
-  const questionStart = useRef(0);
-  const locked = useRef(false);
   const input = useRef(null);
+  const requestLocked = useRef(false);
+  const finishLocked = useRef(false);
+  const runId = useRef(0);
 
-  useEffect(() => {
-    if (stage !== 'active' || view !== 'training') {
-      return;
-    }
+  const active = stage === 'active';
 
-    const id = window.setInterval(() => {
-      setElapsed(performance.now() - sessionStart.current);
-    }, 100);
+  const correct = summary?.score ?? score;
+  const totalAttempts = summary?.attempts ?? attempts;
+  const incorrect = Math.max(0, totalAttempts - correct);
 
-    return () => window.clearInterval(id);
-  }, [stage, view]);
+  const accuracy = totalAttempts
+    ? Math.round((correct / totalAttempts) * 100)
+    : 0;
 
-  useEffect(() => {
-    if (stage === 'active' && view === 'training') {
-      input.current?.focus();
-    }
-  }, [index, stage, view]);
+  const sessionDuration = training
+    ? training.endsAt - training.startedAt
+    : duration * 1000;
 
-  const summary = summarize(attempts);
-
-  const streakIndex = [...attempts]
-    .reverse()
-    .findIndex((attempt) => !attempt.correct);
-
-  const streak = streakIndex < 0
-    ? attempts.length
-    : streakIndex;
+  const remaining = Math.max(0, sessionDuration - elapsed);
 
   const progress = stage === 'result'
     ? 100
-    : stage === 'active'
-      ? Math.round((index / limit) * 100)
+    : training
+      ? Math.min(100, Math.round((elapsed / sessionDuration) * 100))
       : 0;
 
-  const go = (nextView) => {
-    setView(nextView);
+  const reset = () => {
+    runId.current += 1;
+    requestLocked.current = false;
+    finishLocked.current = false;
 
-    if (nextView !== 'training') {
-      setStage('setup');
-    }
+    setStage('setup');
+    setTraining(null);
+    setQuestion(null);
+    setAnswer('');
+    setScore(0);
+    setAttempts(0);
+    setStreak(0);
+    setElapsed(0);
+    setSummary(null);
+    setError('');
+    setLoading(false);
   };
 
-  const start = () => {
-    if (!selected.length) {
+  const go = (nextView) => {
+    reset();
+    setView(nextView);
+  };
+
+  const finish = useCallback(async (currentTraining, currentRun) => {
+    if (
+      !currentTraining ||
+      finishLocked.current ||
+      runId.current !== currentRun
+    ) {
       return;
     }
 
-    setQuestions(generateSeries(selected, difficulty, limit));
-    setIndex(0);
-    setAnswer('');
-    setAttempts([]);
-    setElapsed(0);
+    finishLocked.current = true;
+    setStage('result');
+    setLoading(true);
     setError('');
 
-    locked.current = false;
-    sessionStart.current = performance.now();
-    questionStart.current = sessionStart.current;
+    try {
+      const result = await getTrainingSummary(
+        currentTraining.sessionId,
+      );
 
-    setStage('active');
-  };
+      if (runId.current !== currentRun) {
+        return;
+      }
 
-  const submit = (event) => {
-    event.preventDefault();
+      setSummary(result);
+      setScore(result.score);
+      setAttempts(result.attempts);
+      setElapsed(result.endsAt - result.startedAt);
+    } catch (caught) {
+      if (runId.current === currentRun) {
+        setError(
+          getErrorMessage(
+            caught,
+            'Nie udało się pobrać wyniku treningu.',
+          ),
+        );
+      }
+    } finally {
+      if (runId.current === currentRun) {
+        setLoading(false);
+        finishLocked.current = false;
+      }
+    }
+  }, []);
 
-    if (stage !== 'active' || locked.current) {
+  useEffect(() => {
+    if (!active || !training) {
       return;
     }
 
-    if (!/^-?\d+$/.test(answer.trim())) {
+    const currentRun = runId.current;
+
+    const tick = () => {
+      if (runId.current !== currentRun) {
+        return;
+      }
+
+      const now = Date.now();
+      const elapsedMs = Math.min(
+        sessionDuration,
+        Math.max(0, now - training.startedAt),
+      );
+
+      setElapsed(elapsedMs);
+
+      if (now >= training.endsAt) {
+        void finish(training, currentRun);
+      }
+    };
+
+    tick();
+
+    const interval = window.setInterval(tick, 100);
+
+    return () => window.clearInterval(interval);
+  }, [active, training, sessionDuration, finish]);
+
+  useEffect(() => {
+    if (active && !loading && question) {
+      input.current?.focus();
+    }
+  }, [active, loading, question]);
+
+  const start = async () => {
+    if (
+      !selected.length ||
+      playerSession.status !== 'ready' ||
+      loading
+    ) {
+      return;
+    }
+
+    reset();
+
+    const currentRun = runId.current;
+    setLoading(true);
+
+    try {
+      const result = await startTraining(
+        selected,
+        difficulty,
+        duration,
+      );
+
+      if (runId.current !== currentRun) {
+        return;
+      }
+
+      setTraining({
+        sessionId: result.sessionId,
+        startedAt: result.startedAt,
+        endsAt: result.endsAt,
+      });
+
+      setQuestion(result.question);
+      setScore(result.score);
+      setStage('active');
+    } catch (caught) {
+      if (runId.current === currentRun) {
+        setError(
+          getErrorMessage(
+            caught,
+            'Nie udało się rozpocząć treningu.',
+          ),
+        );
+      }
+    } finally {
+      if (runId.current === currentRun) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+
+    if (
+      !active ||
+      !training ||
+      !question ||
+      requestLocked.current ||
+      Date.now() >= training.endsAt
+    ) {
+      return;
+    }
+
+    const value = answer.trim();
+    const numericAnswer = Number(value);
+
+    if (
+      !/^-?\d+$/.test(value) ||
+      !Number.isSafeInteger(numericAnswer)
+    ) {
       setError('Wpisz poprawną liczbę całkowitą.');
       return;
     }
 
-    locked.current = true;
+    const currentRun = runId.current;
 
-    const now = performance.now();
-
-    const attempt = {
-      correct: Number(answer) === questions[index].answer,
-      durationMs: now - questionStart.current,
-    };
-
-    setAttempts((previous) => [...previous, attempt]);
-    setElapsed(now - sessionStart.current);
-    setAnswer('');
+    requestLocked.current = true;
+    setLoading(true);
     setError('');
 
-    if (index + 1 === questions.length) {
-      setStage('result');
-    } else {
-      setIndex(index + 1);
-      questionStart.current = now;
-    }
+    try {
+      const result = await submitTrainingAnswer(
+        training.sessionId,
+        question.id,
+        numericAnswer,
+      );
 
-    locked.current = false;
+      if (runId.current !== currentRun) {
+        return;
+      }
+
+      setScore(result.score);
+      setAttempts(result.attempts);
+      setQuestion(result.question);
+      setAnswer('');
+
+      if (result.correct) {
+        setStreak((previous) => previous + 1);
+      } else {
+        setStreak(0);
+        setError('Niepoprawny wynik. Spróbuj ponownie.');
+      }
+
+      if (Date.now() >= training.endsAt) {
+        await finish(training, currentRun);
+      }
+    } catch (caught) {
+      if (runId.current !== currentRun) {
+        return;
+      }
+
+      if (caught instanceof ApiError && caught.status === 410) {
+        await finish(training, currentRun);
+        return;
+      }
+
+      if (caught instanceof ApiError && caught.status === 409) {
+        try {
+          const updatedQuestion = await getTrainingQuestion(
+            training.sessionId,
+          );
+
+          if (runId.current === currentRun) {
+            setQuestion(updatedQuestion);
+            setAnswer('');
+            setError('Zadanie zostało odświeżone.');
+          }
+        } catch (refreshError) {
+          if (runId.current !== currentRun) {
+            return;
+          }
+
+          if (
+            refreshError instanceof ApiError &&
+            refreshError.status === 410
+          ) {
+            await finish(training, currentRun);
+          } else {
+            setError(
+              getErrorMessage(
+                refreshError,
+                'Nie udało się odświeżyć zadania.',
+              ),
+            );
+          }
+        }
+
+        return;
+      }
+
+      setError(
+        getErrorMessage(
+          caught,
+          'Nie udało się sprawdzić odpowiedzi.',
+        ),
+      );
+    } finally {
+      if (runId.current === currentRun) {
+        requestLocked.current = false;
+        setLoading(false);
+      }
+    }
   };
 
   return (
@@ -185,9 +403,7 @@ export default function App() {
                       <small>Ćwicz we własnym tempie</small>
                     </span>
 
-                    <span className={styles.choiceArrow}>
-                      ↗
-                    </span>
+                    <span className={styles.choiceArrow}>↗</span>
                   </button>
 
                   <button
@@ -208,9 +424,7 @@ export default function App() {
                       <small>Wkrótce dostępny</small>
                     </span>
 
-                    <span className={styles.choiceArrow}>
-                      —
-                    </span>
+                    <span className={styles.choiceArrow}>—</span>
                   </button>
                 </div>
               </div>
@@ -223,9 +437,7 @@ export default function App() {
                   </span>
                 </div>
 
-                <span className={styles.mathFloat}>
-                  + − × ÷
-                </span>
+                <span className={styles.mathFloat}>+ − × ÷</span>
               </div>
             </section>
           )}
@@ -243,7 +455,8 @@ export default function App() {
                   {ops.map((op) => (
                     <button
                       key={op}
-                      disabled={stage === 'active'}
+                      type="button"
+                      disabled={active || loading}
                       aria-pressed={selected.includes(op)}
                       className={
                         selected.includes(op) ? styles.chosen : ''
@@ -267,7 +480,7 @@ export default function App() {
 
                 <select
                   id="difficulty"
-                  disabled={stage === 'active'}
+                  disabled={active || loading}
                   value={difficulty}
                   onChange={(event) =>
                     setDifficulty(event.target.value)
@@ -278,42 +491,45 @@ export default function App() {
                   <option value="hard">Trudny</option>
                 </select>
 
-                <label htmlFor="limit">
-                  LICZBA ZADAŃ
+                <label htmlFor="duration">
+                  CZAS TRENINGU
                 </label>
 
                 <select
-                  id="limit"
-                  disabled={stage === 'active'}
-                  value={limit}
+                  id="duration"
+                  disabled={active || loading}
+                  value={duration}
                   onChange={(event) =>
-                    setLimit(Number(event.target.value))
+                    setDuration(Number(event.target.value))
                   }
                 >
-                  <option value={10}>10 działań</option>
-                  <option value={20}>20 działań</option>
-                  <option value={30}>30 działań</option>
+                  <option value={30}>30 sekund</option>
+                  <option value={60}>60 sekund</option>
+                  <option value={120}>120 sekund</option>
                 </select>
 
-                {stage === 'active' ? (
+                {active ? (
                   <button
                     className={styles.secondary}
-                    onClick={() => {
-                      setStage('setup');
-                      setElapsed(0);
-                    }}
+                    onClick={reset}
                   >
                     Przerwij trening
                   </button>
                 ) : (
                   <button
                     className={styles.primary}
-                    disabled={!selected.length}
+                    disabled={
+                      !selected.length ||
+                      loading ||
+                      playerSession.status !== 'ready'
+                    }
                     onClick={start}
                   >
-                    {stage === 'result'
-                      ? 'Nowa sesja'
-                      : 'Rozpocznij'}
+                    {loading
+                      ? 'Ładowanie...'
+                      : stage === 'result'
+                        ? 'Nowa sesja'
+                        : 'Rozpocznij'}
                     <span>↗</span>
                   </button>
                 )}
@@ -323,32 +539,52 @@ export default function App() {
                     Wybierz co najmniej jedno działanie.
                   </p>
                 )}
+
+                {playerSession.status === 'error' && (
+                  <p className={styles.notice} role="alert">
+                    {playerSession.error}
+                  </p>
+                )}
               </aside>
 
               {stage === 'setup' && (
                 <div className={styles.arenaCenter}>
                   <span className={styles.bigGlyph}>∑</span>
+
                   <h2>Gotowy na trening?</h2>
-                  <p>Wybierz parametry aby rozpocząć.</p>
+
+                  <p>
+                    Wybierz działania, poziom trudności
+                    i czas treningu.
+                  </p>
 
                   <button
                     className={styles.primary}
-                    disabled={!selected.length}
+                    disabled={
+                      !selected.length ||
+                      loading ||
+                      playerSession.status !== 'ready'
+                    }
                     onClick={start}
                   >
-                    Start <span>→</span>
+                    {loading ? 'Ładowanie...' : 'Start'}
+                    <span>→</span>
                   </button>
+
+                  {error && (
+                    <small role="alert">{error}</small>
+                  )}
                 </div>
               )}
 
-              {stage === 'active' && (
+              {active && (
                 <div className={styles.arenaCenter}>
                   <span className={styles.eyebrow}>
-                    ZADANIE {String(index + 1).padStart(2, '0')} / {limit}
+                    POZOSTAŁY CZAS: {formatTime(remaining)}
                   </span>
 
                   <div className={styles.equation}>
-                    {questions[index]?.label}{' '}
+                    {formatQuestion(question)}{' '}
                     <span className={styles.accent}>= ?</span>
                   </div>
 
@@ -363,6 +599,7 @@ export default function App() {
                       autoComplete="off"
                       placeholder="Twój wynik"
                       value={answer}
+                      disabled={loading}
                       onChange={(event) =>
                         setAnswer(event.target.value)
                       }
@@ -370,9 +607,11 @@ export default function App() {
 
                     <button
                       type="submit"
-                      disabled={!answer.trim()}
+                      disabled={!answer.trim() || loading}
                     >
-                      Sprawdź ↗
+                      {loading
+                        ? 'Sprawdzanie...'
+                        : 'Sprawdź ↗'}
                     </button>
                   </form>
 
@@ -391,16 +630,39 @@ export default function App() {
                   <h2>Sesja zakończona.</h2>
 
                   <div className={styles.finalScore}>
-                    {summary.accuracy}<span>%</span>
+                    {correct}<span> pkt</span>
                   </div>
 
                   <p>
-                    {summary.correct} poprawnych odpowiedzi na{' '}
-                    {attempts.length}
+                    {correct} poprawnych odpowiedzi
+                    na {totalAttempts} prób
                   </p>
+
+                  {loading && (
+                    <small role="status">
+                      Pobieranie wyniku...
+                    </small>
+                  )}
+
+                  {error && (
+                    <small role="alert">{error}</small>
+                  )}
+
+                  {error && training && (
+                    <button
+                      className={styles.secondary}
+                      disabled={loading}
+                      onClick={() =>
+                        void finish(training, runId.current)
+                      }
+                    >
+                      Pobierz wynik ponownie
+                    </button>
+                  )}
 
                   <button
                     className={styles.primary}
+                    disabled={loading}
                     onClick={start}
                   >
                     Jeszcze raz ↗
@@ -410,7 +672,7 @@ export default function App() {
 
               <div className={styles.progress}>
                 <div>
-                  <span>POSTĘP</span>
+                  <span>POSTĘP CZASU</span>
                   <span>{progress}%</span>
                 </div>
 
@@ -425,17 +687,11 @@ export default function App() {
                 </div>
 
                 {[
-                  ['CZAS', format(elapsed)],
-                  ['POPRAWNE', String(summary.correct)],
-                  ['BŁĘDNE', String(summary.incorrect)],
+                  ['CZAS', formatTime(elapsed)],
+                  ['POPRAWNE', String(correct)],
+                  ['BŁĘDNE', String(incorrect)],
                   ['SERIA', String(streak)],
-                  ['SKUTECZNOŚĆ', `${summary.accuracy}%`],
-                  ...(stage === 'result'
-                    ? [[
-                      'ŚREDNI CZAS',
-                      `${summary.averageSeconds.toFixed(1)} s`,
-                    ]]
-                    : []),
+                  ['SKUTECZNOŚĆ', `${accuracy}%`],
                 ].map(([name, value]) => (
                   <div className={styles.stat} key={name}>
                     <span>{name}</span>
