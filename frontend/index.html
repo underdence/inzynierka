@@ -5,6 +5,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#101211" />
+  <script>
+    try {
+      const savedTheme = localStorage.getItem('math-duel-theme');
+      const theme = savedTheme === 'light' || savedTheme === 'dark'
+        ? savedTheme
+        : matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = theme;
+      document.querySelector('meta[name="theme-color"]').content =
+        theme === 'light' ? '#f2f5f0' : '#101211';
+    } catch {
+      document.documentElement.dataset.theme = 'dark';
+    }
+  </script>
   <meta name="description" content="Szybkie Liczenie 1v1 — trening matematyczny i pojedynki online." />
   <title>Szybkie Liczenie 1v1</title>
 </head>
