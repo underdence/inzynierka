@@ -27,6 +27,22 @@ const getErrorMessage = (error, fallback) =>
 
 export default function App() {
   const playerSession = usePlayerSession();
+  const [theme, setTheme] = useState(() =>
+    document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+  );
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      'content', nextTheme === 'dark' ? '#101211' : '#f2f5f0',
+    );
+    try {
+      localStorage.setItem('math-duel-theme', nextTheme);
+    } catch {
+    }
+    setTheme(nextTheme);
+  };
 
   const [view, setView] = useState('start');
   const [stage, setStage] = useState('setup');
@@ -364,14 +380,26 @@ export default function App() {
             </span>
           </button>
 
-          {view !== 'start' && (
+          <div className={styles.headerActions}>
             <button
-              className={styles.backHome}
-              onClick={() => go('start')}
+              type="button"
+              className={styles.themeToggle}
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Włącz tryb jasny' : 'Włącz tryb ciemny'}
+              title={theme === 'dark' ? 'Tryb jasny' : 'Tryb ciemny'}
             >
-              ← Wróć na start
+              <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
+              <span>{theme === 'dark' ? 'Jasny' : 'Ciemny'}</span>
             </button>
-          )}
+            {view !== 'start' && (
+              <button
+                className={styles.backHome}
+                onClick={() => go('start')}
+              >
+                ← Wróć na start
+              </button>
+            )}
+          </div>
         </header>
 
         <main className={styles.main}>
